@@ -29,6 +29,19 @@ type UserWeiboAndComment struct {
 	Status     Status `json:"status"`
 }
 
+type WeiboUser struct {
+	Id        string `json:"idstr"`
+	Name      string `json:"name"`
+	Avatar_hd string `json:"avatar_hd"`
+}
+
+type WeiboComment struct {
+	Created_at string    `json:"created_at"`
+	Id         string    `json:"mid"`
+	Text       string    `json:"text"`
+	User       WeiboUser `json:"user"`
+}
+
 var access_token string = "2.004t5RdCHB_LqCd7d61482d5iGDbcD"
 
 func httpGetHandle(url_string string, parameters url.Values) (map[string]interface{}, error) {
@@ -61,6 +74,28 @@ func httpGetHandle(url_string string, parameters url.Values) (map[string]interfa
 //fmt.Println(raw_json)
 //return nil, nil
 //}
+func getComment(id string) ([]WeiboComment, error) {
+	comments_show_url := fmt.Sprintf("https://api.weibo.com/2/comments/show.json")
+	search_place_parameters := url.Values{}
+	search_place_parameters.Add("access_token", access_token)
+	search_place_parameters.Add("id", id)
+	json_string, json_string_err := httpGetHandle(comments_show_url, search_place_parameters)
+	if json_string_err != nil {
+		fmt.Println("读取评论url失败！")
+		return nil, json_string_err
+	}
+	//fmt.Println(json_string["comments"])
+	var weibo_comments []WeiboComment
+	json_string_to, _ := json.Marshal(json_string["comments"])
+	//fmt.Printf("%+v", string(json_string_to))
+	weibo_comments_err := json.Unmarshal(json_string_to, &weibo_comments)
+	if weibo_comments_err != nil {
+		fmt.Println("评论json失败！")
+		return nil, weibo_comments_err
+	}
+	return weibo_comments, nil
+}
+
 func filterJson(raw_json []byte) ([]byte, error) {
 	return_jsons := []map[string]interface{}{}
 
@@ -77,6 +112,12 @@ func filterJson(raw_json []byte) ([]byte, error) {
 		return_json["Avatar_hd"] = one.Avatar_hd
 		return_json["Created_at"] = one.Created_at
 		return_json["Id"] = one.Id
+		weibo_comments, weibo_comments_err := getComment(one.Id)
+		if weibo_comments_err != nil {
+			fmt.Println("评论hhhh失败！")
+			return nil, errors.New("评论hhhh失败！")
+		}
+		return_json["Comments"] = weibo_comments
 		return_json["Status"] = one.Status
 		return_jsons = append(return_jsons, return_json)
 	}
@@ -152,4 +193,5 @@ func getInfoByAddr(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/getInfoByAddr", getInfoByAddr)
 	http.ListenAndServe(":9091", nil)
+	//getComment("3734712990139762")
 }
